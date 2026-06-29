@@ -48,6 +48,44 @@ LEVEL_LABELS = {
 }
 
 
+# ====== Pinyin matching (helps single-syllable / homophone recognition) ======
+# pinyin.json => {"是": ["shi","ti"], ...}  (tone-less syllables per character)
+PINYIN_PATH = os.path.join(os.path.dirname(__file__), "pinyin.json")
+try:
+    with open(PINYIN_PATH, encoding="utf-8") as _f:
+        PINYIN = json.load(_f)
+except (FileNotFoundError, json.JSONDecodeError):
+    PINYIN = {}
+
+_PUNC = re.compile(r"[\s，。！？、,.!?·]+")
+
+
+def _clean_spoken(s):
+    return _PUNC.sub("", (s or "")).strip()
+
+
+def pron_match(spoken, target):
+    """True if spoken sounds like target (exact, substring, or same toneless pinyin)."""
+    s = _clean_spoken(spoken)
+    t = _clean_spoken(target)
+    if not s or not t:
+        return False
+    if s == t or t in s:
+        return True
+
+    # Compare by tone-less pinyin, syllable by syllable.
+    t_sets = [set(PINYIN.get(c, [])) for c in t]
+    if any(not x for x in t_sets):
+        return False  # no reliable pinyin for some target char
+    tl = len(t)
+    if len(s) < tl:
+        return False
+    for off in range(0, len(s) - tl + 1):
+        if all(set(PINYIN.get(s[off + i], [])) & t_sets[i] for i in range(tl)):
+            return True
+    return False
+
+
 # ====== Board / vocabulary helpers ======
 # (min_word_count, columns, in-a-row needed to win)
 BOARD_TIERS = [
@@ -177,6 +215,18 @@ def wordbank_info():
         "labels": LEVEL_LABELS,
         "total": sum(len(v) for v in WORD_BANK.values()),
     })
+
+
+@app.route("/match_speech", methods=["POST"])
+def match_speech():
+    """Check whether any recognized candidate sounds like the target word."""
+    data = request.get_json(silent=True) or {}
+    target = data.get("target", "")
+    cands = data.get("candidates", []) or []
+    if isinstance(cands, str):
+        cands = [cands]
+    matched = any(pron_match(c, target) for c in cands)
+    return jsonify({"match": bool(matched)})
 
 
 @app.route("/random_words")

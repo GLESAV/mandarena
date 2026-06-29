@@ -438,6 +438,24 @@ function applyClaim(index, owner) {
 }
 
 // ====== Speech recognition ======
+function gatherCandidates(event) {
+  const out = [];
+  for (let i = 0; i < event.results.length; i++) {
+    const r = event.results[i];
+    for (let j = 0; j < r.length; j++) out.push((r[j].transcript || "").trim());
+  }
+  return out.filter(Boolean);
+}
+
+// Ask the server if any candidate sounds like the target (toneless pinyin).
+function serverMatch(target, candidates) {
+  return fetch("/match_speech", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target, candidates })
+  }).then(r => r.json()).then(d => !!d.match).catch(() => false);
+}
+
 function startSpeechRecognition(cell) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
@@ -450,57 +468,51 @@ function startSpeechRecognition(cell) {
   const target = (cell.dataset.word || "").trim();
   const rec = new SR();
   rec.lang = "zh-CN";
-  rec.interimResults = false;
+  rec.interimResults = true;   // capture short single-syllable words without dragging
+  rec.continuous = false;
   rec.maxAlternatives = 8;
 
   let finished = false;
-  let retries = 0;
+  let lastCandidates = [];
 
-  const tryRec = () => { if (!finished) rec.start(); };
+  function done(success, failMsg) {
+    if (finished) return;
+    finished = true;
+    try { rec.stop(); } catch (e) {}
+    if (success) {
+      modalResultEl.textContent = "✔ Correct!";
+      setTimeout(() => attemptSuccess(cell), 200);
+    } else {
+      modalResultEl.textContent = "✖ Not quite.";
+      setTimeout(() => { resumeModalCountdown(); attemptFail(failMsg); }, 200);
+    }
+  }
 
   rec.onresult = (event) => {
     if (finished) return;
-    finished = true;
-    const candidates = [];
-    for (let i = 0; i < event.results[0].length; i++) {
-      candidates.push(event.results[0][i].transcript.trim());
-    }
-    if (candidates.some(s => looseMatchChinese(s, target))) {
-      modalResultEl.textContent = "✔ Correct!";
-      setTimeout(() => attemptSuccess(cell), 250);
-    } else {
-      modalResultEl.textContent = "✖ Not quite.";
-      setTimeout(() => {
-        retries++;
-        if (retries < 2) { finished = false; tryRec(); }
-        else { resumeModalCountdown(); attemptFail("Wrong. Try again."); }
-      }, 200);
+    const cands = gatherCandidates(event);
+    if (cands.length) lastCandidates = cands;
+    // Fast path: exact / substring match in the browser.
+    if (cands.some(s => looseMatchChinese(s, target))) { done(true); return; }
+    // On a final result, ask the server for a pinyin (homophone) match.
+    if (Array.from(event.results).some(r => r.isFinal)) {
+      serverMatch(target, cands).then(m => done(m, "Wrong. Try again."));
     }
   };
 
-  rec.onerror = () => {
-    if (finished) return;
-    finished = true;
-    retries++;
-    if (retries < 2) { finished = false; tryRec(); }
-    else {
-      modalResultEl.textContent = "✖ Error. Try again.";
-      setTimeout(() => { resumeModalCountdown(); attemptFail("Recognizer error. Try again."); }, 200);
-    }
-  };
+  rec.onerror = () => { done(false, "Recognizer error. Try again."); };
 
   rec.onend = () => {
     if (finished) return;
-    finished = true;
-    retries++;
-    if (retries < 2) { finished = false; tryRec(); }
-    else {
-      modalResultEl.textContent = "✖ No audio detected.";
-      setTimeout(() => { resumeModalCountdown(); attemptFail("No audio detected."); }, 200);
+    // Speech ended without an accepted match — check interim candidates by sound.
+    if (lastCandidates.length) {
+      serverMatch(target, lastCandidates).then(m => done(m, "Wrong. Try again."));
+    } else {
+      done(false, "No audio detected. Try again.");
     }
   };
 
-  tryRec();
+  try { rec.start(); } catch (e) { done(false, "Could not start mic. Try again."); }
 }
 
 function looseMatchChinese(spoken, target) {

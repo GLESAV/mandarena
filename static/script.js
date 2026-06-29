@@ -350,8 +350,27 @@ function attemptSuccess(cell) {
 }
 
 // ====== Speech Recognition ======
+function gatherCandidates(event) {
+  const out = [];
+  for (let i = 0; i < event.results.length; i++) {
+    const r = event.results[i];
+    for (let j = 0; j < r.length; j++) out.push((r[j].transcript || "").trim());
+  }
+  return out.filter(Boolean);
+}
+
+// Ask the server if any candidate sounds like the target (toneless pinyin).
+function serverMatch(target, candidates) {
+  return fetch("/match_speech", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target, candidates })
+  }).then(r => r.json()).then(d => !!d.match).catch(() => false);
+}
+
 function startSpeechRecognition(cell) {
-  if (!('webkitSpeechRecognition' in window)) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
     alert("Web Speech API not supported in this browser. Please use Chrome.");
     resumeModalCountdown();
     return;
@@ -359,84 +378,50 @@ function startSpeechRecognition(cell) {
 
   const target = (cell.dataset.word || "").trim();
 
-  // Create new recognition instance
-  const rec = new webkitSpeechRecognition();
+  const rec = new SR();
   rec.lang = "zh-CN";
-  rec.interimResults = false;
-  rec.maxAlternatives = 8; // increased from 3 to 8
+  rec.interimResults = true;   // capture short single-syllable words without dragging
+  rec.continuous = false;
+  rec.maxAlternatives = 8;
 
   let finished = false;
-  let retries = 0;  // number of automatic retries
+  let lastCandidates = [];
 
-  const tryRecognition = () => {
+  function done(success, failMsg) {
     if (finished) return;
-    rec.start();
-  };
+    finished = true;
+    try { rec.stop(); } catch (e) {}
+    if (success) {
+      modalResultEl.textContent = "✔ Correct!";
+      setTimeout(() => attemptSuccess(cell), 200);
+    } else {
+      modalResultEl.textContent = "✖ Not quite.";
+      setTimeout(() => { resumeModalCountdown(); attemptFail(failMsg); }, 200);
+    }
+  }
 
   rec.onresult = (event) => {
     if (finished) return;
-    finished = true;
-
-    let spokenCandidates = [];
-    for (let i = 0; i < event.results[0].length; i++) {
-      spokenCandidates.push(event.results[0][i].transcript.trim());
-    }
-
-    const matched = spokenCandidates.some(s => looseMatchChinese(s, target));
-    if (matched) {
-      modalResultEl.textContent = "✔ Correct!";
-      setTimeout(() => attemptSuccess(cell), 250);
-    } else {
-      modalResultEl.textContent = "✖ Not quite.";
-      setTimeout(() => {
-        retries++;
-        if (retries < 2) {
-          // Automatically retry short words immediately
-          finished = false;
-          tryRecognition();
-        } else {
-          resumeModalCountdown();
-          attemptFail("Wrong. Try again.");
-        }
-      }, 200);
+    const cands = gatherCandidates(event);
+    if (cands.length) lastCandidates = cands;
+    if (cands.some(s => looseMatchChinese(s, target))) { done(true); return; }
+    if (Array.from(event.results).some(r => r.isFinal)) {
+      serverMatch(target, cands).then(m => done(m, "Wrong. Try again."));
     }
   };
 
-  rec.onerror = () => {
-    if (!finished) {
-      finished = true;
-      retries++;
-      if (retries < 2) {
-        finished = false;
-        tryRecognition();
-      } else {
-        modalResultEl.textContent = "✖ Error. Try again.";
-        setTimeout(() => {
-          resumeModalCountdown();
-          attemptFail("Recognizer error. Try again.");
-        }, 200);
-      }
-    }
-  };
+  rec.onerror = () => { done(false, "Recognizer error. Try again."); };
 
   rec.onend = () => {
-    if (!finished) {
-      finished = true;
-      retries++;
-      if (retries < 2) {
-        finished = false;
-        tryRecognition();
-      } else {
-        modalResultEl.textContent = "✖ No audio detected.";
-        setTimeout(() => {
-          resumeModalCountdown();
-          attemptFail("No audio detected.");
-        }, 200);
-      }
+    if (finished) return;
+    if (lastCandidates.length) {
+      serverMatch(target, lastCandidates).then(m => done(m, "Wrong. Try again."));
+    } else {
+      done(false, "No audio detected. Try again.");
     }
   };
 
-  tryRecognition();
+  try { rec.start(); } catch (e) { done(false, "Could not start mic. Try again."); }
 }
 
 function looseMatchChinese(spoken, target) {
