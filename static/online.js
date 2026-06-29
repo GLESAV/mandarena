@@ -163,6 +163,53 @@ againBtn.addEventListener("click", () => {
   socket.emit("play_again", { code: roomCode });
 });
 
+// ---- Microphone helper / quick permission access ----
+const testMicBtn = document.getElementById("testMicBtn");
+const micStatus  = document.getElementById("micStatus");
+const macMicLink = document.getElementById("macMicLink");
+
+const isMac    = /Mac/.test(navigator.platform) || /Mac/.test(navigator.userAgent);
+const isSafari = /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent);
+
+// The macOS settings quick link only makes sense on a Mac.
+if (!isMac && macMicLink) macMicLink.style.display = "none";
+
+// Gentle nudge: Safari's speech recognition is unreliable for this game.
+if (isSafari && micStatus) {
+  micStatus.innerHTML = "⚠️ Safari's speech recognition is unreliable here — <strong>Google Chrome</strong> works best.";
+  micStatus.className = "mic-status warn";
+}
+
+if (testMicBtn) {
+  testMicBtn.addEventListener("click", async () => {
+    micStatus.className = "mic-status";
+    micStatus.textContent = "Requesting microphone…";
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      micStatus.textContent = "This browser can't access the mic. Try Google Chrome.";
+      micStatus.className = "mic-status err";
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());  // we only needed the prompt/permission
+      micStatus.textContent = "✅ Microphone enabled — you're good to go!";
+      micStatus.className = "mic-status ok";
+    } catch (err) {
+      const name = err && err.name;
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        micStatus.innerHTML = isMac
+          ? "🚫 Mic blocked. Use <strong>Open macOS mic settings</strong> above to allow it, then reload."
+          : "🚫 Mic blocked. Allow it via the lock / 🎤 icon in the address bar, then reload.";
+      } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        micStatus.textContent = "🚫 No microphone found on this device.";
+      } else {
+        micStatus.textContent = "Couldn't access the mic. Open the help below.";
+      }
+      micStatus.className = "mic-status err";
+    }
+  });
+}
+
 // Prefill code from ?room=XXXX so an invite link drops you straight in.
 (function prefillRoom() {
   const params = new URLSearchParams(location.search);

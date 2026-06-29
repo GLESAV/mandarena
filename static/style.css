@@ -391,3 +391,15 @@ html, body {
 .pix-btn.tiny { font-size: 12px; padding: 8px 12px; min-width: 46px; }
 .pix-btn.tiny.mix { background: var(--orange); }
 .level-hint { font-family: var(--cn-font); font-size: 11px; font-weight: 700; margin-top: 8px; text-align: center; line-height: 1.5; opacity: .8; }
+
+/* ====== Microphone helper (lobby) ====== */
+.mic-help { max-width: 560px; margin: 26px auto 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.mic-link { font-family: var(--cn-font); font-weight: 700; font-size: 13px; color: var(--orange); text-decoration: underline; }
+.mic-status { font-family: var(--cn-font); font-weight: 700; font-size: 13px; line-height: 1.5; min-height: 18px; }
+.mic-status.ok   { color: #7CFC9A; }
+.mic-status.err  { color: var(--btn-hover); }
+.mic-status.warn { color: var(--orange); }
+.mic-details { font-family: var(--cn-font); font-size: 13px; color: var(--text); max-width: 540px; }
+.mic-details summary { cursor: pointer; font-weight: 700; }
+.mic-steps { margin-top: 8px; line-height: 1.6; text-align: left; background: rgba(0,0,0,0.18); border-radius: 10px; padding: 10px 12px; }
+.mic-steps em { color: var(--orange); font-style: normal; }

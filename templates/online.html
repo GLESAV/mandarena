@@ -49,6 +49,20 @@
         <button id="joinBtn" class="pix-btn">JOIN ROOM</button>
       </div>
     </div>
+    <div class="mic-help">
+      <button id="testMicBtn" class="pix-btn small">🎤 TEST / ENABLE MICROPHONE</button>
+      <a id="macMicLink" class="mic-link" href="x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone">Open macOS mic settings ↗</a>
+      <div id="micStatus" class="mic-status"></div>
+      <details class="mic-details">
+        <summary>Mic not working?</summary>
+        <div class="mic-steps">
+          <strong>Safari:</strong> Safari menu → <em>Settings… → Websites → Microphone</em> → set this site to <em>Allow</em>. Then on macOS:
+          <em>System Settings → Privacy &amp; Security → Microphone</em> → turn <em>Safari</em> ON (use the quick link above).<br>
+          <strong>Chrome (recommended):</strong> click the lock / 🎤 icon in the address bar → <em>Microphone → Allow</em> → reload.
+        </div>
+      </details>
+    </div>
+
     <div id="lobbyError" class="lobby-error"></div>
   </section>
 
