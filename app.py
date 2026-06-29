@@ -1,6 +1,7 @@
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO, join_room, leave_room, emit
 import os
+import json
 import random
 import string
 import re
@@ -28,6 +29,24 @@ HSK_WORDS = [
     "学习","学校","一","衣服","医生","医院","椅子","有","月","再见","在",
     "怎么","怎么样","这","中国","中午","住","桌子","字","昨天","坐","做"
 ]
+
+# ====== Leveled word bank (HSK 3.0, ~11k words) ======
+# wordbank.json => {"1": [...], "2": [...], "3": [...], "4": [...]}
+WORDBANK_PATH = os.path.join(os.path.dirname(__file__), "wordbank.json")
+try:
+    with open(WORDBANK_PATH, encoding="utf-8") as _f:
+        WORD_BANK = json.load(_f)
+except (FileNotFoundError, json.JSONDecodeError):
+    WORD_BANK = {"1": [], "2": [], "3": [], "4": []}
+
+LEVEL_LABELS = {
+    "1": "Level 1 · HSK 1–2 (beginner)",
+    "2": "Level 2 · HSK 3–4 (elementary)",
+    "3": "Level 3 · HSK 5–6 (intermediate)",
+    "4": "Level 4 · HSK 7–9 (advanced)",
+    "mix": "Mixed · all levels",
+}
+
 
 # ====== Board / vocabulary helpers ======
 # (min_word_count, columns, in-a-row needed to win)
@@ -148,6 +167,40 @@ def get_words():
     # Used by the local game: 100 unique random words.
     words = random.sample(HSK_WORDS, 100)
     return jsonify({"words": words})
+
+
+@app.route("/wordbank_info")
+def wordbank_info():
+    """Counts + labels per level, for the lobby UI."""
+    return jsonify({
+        "counts": {k: len(v) for k, v in WORD_BANK.items()},
+        "labels": LEVEL_LABELS,
+        "total": sum(len(v) for v in WORD_BANK.values()),
+    })
+
+
+@app.route("/random_words")
+def random_words():
+    """Random sample of words from a level (1-4) or 'mix' (all levels)."""
+    level = (request.args.get("level") or "1").strip()
+    try:
+        n = int(request.args.get("n", 100))
+    except (TypeError, ValueError):
+        n = 100
+    n = max(1, min(n, 200))
+
+    if level == "mix":
+        pool = [w for lst in WORD_BANK.values() for w in lst]
+    else:
+        pool = WORD_BANK.get(level, [])
+
+    if not pool:
+        return jsonify({"words": [], "level": level, "available": 0,
+                        "label": LEVEL_LABELS.get(level, level)})
+
+    sample = random.sample(pool, min(n, len(pool)))
+    return jsonify({"words": sample, "level": level, "available": len(pool),
+                    "label": LEVEL_LABELS.get(level, level)})
 
 
 # ====== Realtime: rooms & gameplay ======

@@ -88,6 +88,43 @@ vocabInput.addEventListener("input", () => {
   vocabCount.textContent = n === 0 ? "0 words (will use default HSK 1 list)" : `${n} unique words`;
 });
 
+// ---- "Use random" level buttons: fill the textarea from the leveled word bank ----
+const levelHint = document.getElementById("levelHint");
+
+(function loadBankInfo() {
+  fetch("/wordbank_info")
+    .then(r => r.json())
+    .then(info => {
+      const c = info.counts || {};
+      levelHint.textContent =
+        `L1 HSK 1–2 (${c["1"]||0}) · L2 HSK 3–4 (${c["2"]||0}) · ` +
+        `L3 HSK 5–6 (${c["3"]||0}) · L4 HSK 7–9 (${c["4"]||0}) — ${info.total||0} words total`;
+    })
+    .catch(() => {});
+})();
+
+document.querySelectorAll(".lvl").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const level = btn.dataset.level;
+    clickSound.currentTime = 0; clickSound.play().catch(()=>{});
+    btn.disabled = true;
+    fetch(`/random_words?level=${encodeURIComponent(level)}&n=100`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.words || !data.words.length) {
+          lobbyError.textContent = "Could not load words for that level.";
+          return;
+        }
+        vocabInput.value = data.words.join("\n");
+        vocabInput.dispatchEvent(new Event("input"));
+        vocabCount.textContent = `${data.words.length} random words — ${data.label}`;
+        lobbyError.textContent = "";
+      })
+      .catch(() => { lobbyError.textContent = "Could not reach the word bank."; })
+      .finally(() => { btn.disabled = false; });
+  });
+});
+
 createBtn.addEventListener("click", () => {
   clickSound.currentTime = 0; clickSound.play().catch(()=>{});
   lobbyError.textContent = "";

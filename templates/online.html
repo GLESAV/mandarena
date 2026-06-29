@@ -22,8 +22,21 @@
       <!-- Create -->
       <div class="lobby-card">
         <h2 class="lobby-h">Create a room</h2>
-        <p class="lobby-sub">Optional: paste your own words below. Leave empty to use the default HSK&nbsp;1 list.</p>
-        <textarea id="vocabInput" class="vocab-input" placeholder="Paste words here — one per line, or separated by spaces/commas.&#10;&#10;爱&#10;八&#10;爸爸&#10;杯子 北京 本"></textarea>
+        <p class="lobby-sub">Pick a difficulty to fill the board with random words, or paste your own below.</p>
+
+        <div class="random-box">
+          <div class="random-label">🎲 Use random words:</div>
+          <div class="random-row">
+            <button class="pix-btn tiny lvl" data-level="1">L1</button>
+            <button class="pix-btn tiny lvl" data-level="2">L2</button>
+            <button class="pix-btn tiny lvl" data-level="3">L3</button>
+            <button class="pix-btn tiny lvl" data-level="4">L4</button>
+            <button class="pix-btn tiny lvl mix" data-level="mix">MIX</button>
+          </div>
+          <div id="levelHint" class="level-hint">L1 HSK 1–2 · L2 HSK 3–4 · L3 HSK 5–6 · L4 HSK 7–9</div>
+        </div>
+
+        <textarea id="vocabInput" class="vocab-input" placeholder="…or paste your own words — one per line, or separated by spaces/commas.&#10;&#10;爱&#10;八&#10;爸爸&#10;杯子 北京 本"></textarea>
         <div id="vocabCount" class="vocab-count">0 words</div>
         <button id="createBtn" class="pix-btn">CREATE ROOM</button>
       </div>
