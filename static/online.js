@@ -500,19 +500,39 @@ function startSpeechRecognition(cell) {
     }
   };
 
-  rec.onerror = () => { done(false, "Recognizer error. Try again."); };
+  rec.onerror = (e) => {
+    const err = e && e.error;
+    let msg = "Recognizer error. Try again.";
+    if (err === "not-allowed" || err === "service-not-allowed")
+      msg = "🎤 Mic blocked — click the lock/🎤 icon in the address bar and Allow.";
+    else if (err === "no-speech")
+      msg = "Didn't hear anything — try again.";
+    else if (err === "aborted")
+      msg = "Mic interrupted — click INTO this window first (only the active tab can use the mic).";
+    else if (err === "audio-capture")
+      msg = "No microphone found on this device.";
+    else if (err === "network")
+      msg = "Network issue with recognition — check your connection.";
+    done(false, msg);
+  };
 
   rec.onend = () => {
     if (finished) return;
     // Speech ended without an accepted match — check interim candidates by sound.
     if (lastCandidates.length) {
       serverMatch(target, lastCandidates).then(m => done(m, "Wrong. Try again."));
+    } else if (!document.hasFocus()) {
+      // Classic two-players-one-computer gotcha: background tabs can't use the mic.
+      done(false, "Click INTO this window first — only the focused tab can use the mic.");
     } else {
       done(false, "No audio detected. Try again.");
     }
   };
 
-  try { rec.start(); } catch (e) { done(false, "Could not start mic. Try again."); }
+  if (!document.hasFocus()) {
+    modalResultEl.textContent = "Tip: click into this window so the mic can hear you.";
+  }
+  try { rec.start(); } catch (e) { done(false, "Could not start mic — is another tab using it?"); }
 }
 
 function looseMatchChinese(spoken, target) {

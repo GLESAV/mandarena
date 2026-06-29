@@ -410,7 +410,21 @@ function startSpeechRecognition(cell) {
     }
   };
 
-  rec.onerror = () => { done(false, "Recognizer error. Try again."); };
+  rec.onerror = (e) => {
+    const err = e && e.error;
+    let msg = "Recognizer error. Try again.";
+    if (err === "not-allowed" || err === "service-not-allowed")
+      msg = "🎤 Mic blocked — click the lock/🎤 icon in the address bar and Allow.";
+    else if (err === "no-speech")
+      msg = "Didn't hear anything — try again.";
+    else if (err === "aborted")
+      msg = "Mic interrupted — make sure this window is focused.";
+    else if (err === "audio-capture")
+      msg = "No microphone found on this device.";
+    else if (err === "network")
+      msg = "Network issue with recognition — check your connection.";
+    done(false, msg);
+  };
 
   rec.onend = () => {
     if (finished) return;
@@ -421,7 +435,7 @@ function startSpeechRecognition(cell) {
     }
   };
 
-  try { rec.start(); } catch (e) { done(false, "Could not start mic. Try again."); }
+  try { rec.start(); } catch (e) { done(false, "Could not start mic — is another tab using it?"); }
 }
 
 function looseMatchChinese(spoken, target) {
