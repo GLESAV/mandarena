@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mandarena</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+</head>
+<body>
+  <header class="top-header">
+    <h1 class="title">Mandarena</h1>
+  </header>
+
+  <main class="menu-wrap">
+    <p class="menu-tagline">Speak the word. Claim the square. Get five in a row.</p>
+
+    <div class="menu-cards">
+      <a class="menu-card" href="{{ url_for('online') }}">
+        <div class="menu-card-icon">🌐</div>
+        <div class="menu-card-title">Play Online</div>
+        <div class="menu-card-desc">Create a room and play against a friend on another device, anywhere.</div>
+      </a>
+
+      <a class="menu-card" href="{{ url_for('game') }}">
+        <div class="menu-card-icon">🎮</div>
+        <div class="menu-card-title">Play Local</div>
+        <div class="menu-card-desc">Two players take turns on this one device, in person.</div>
+      </a>
+    </div>
+
+    <p class="menu-note">Tip: speech recognition works best in Google Chrome with a microphone.</p>
+  </main>
+</body>
+</html>

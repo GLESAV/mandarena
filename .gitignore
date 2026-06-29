@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.venv313/
+venv/
+
+# OS / editor
+.DS_Store
+
+# Logs & scratch
+*.log
+SELECT

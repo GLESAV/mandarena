@@ -1,4 +1,4 @@
-app = "mandarena-game"
+app = "mandarena-yanranchu"
 
 [build]
   dockerfile = "Dockerfile"
@@ -10,6 +10,11 @@ app = "mandarena-game"
 [http_service]
   internal_port = 8080
   force_https = true
+  # Cost saver: stop the machine when idle, auto-start it on the next request.
+  # First visit after idle wakes it in ~1-2s; cost drops to near $0 when unused.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
 
 [deploy]
   primary_region = "sjc"
